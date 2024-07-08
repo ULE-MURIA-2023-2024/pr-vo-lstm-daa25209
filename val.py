@@ -10,19 +10,24 @@ from params import *
 
 
 # Create the visual odometry model
-model = VisualOdometryModel(hidden_size, num_layers)
+model = VisualOdometryModel(hidden_size, num_layers, bidirectional, lstm_dropout)
 
 transform = T.Compose([
     T.ToTensor(),
     model.resnet_transforms()
 ])
 
+# Load dataset
+val_dataset = VisualOdometryDataset(
+    dataset_path='ruta/a/tu/dataset',  # Asegúrate de proporcionar la ruta correcta a tu dataset
+    transform=transform,
+    sequence_length=sequence_length,
+    validation=True
+)
 
-# TODO: Load dataset
-train_loader = ...
+val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
 
-
-# val
+# Validate
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 model.to(device)
@@ -30,19 +35,17 @@ model.load_state_dict(torch.load("vo.pt"))
 model.eval()
 
 validation_string = ""
-position = [0.0] * 7
 
 with torch.no_grad():
-    for images, labels, timestamp in tqdm(train_loader, f"Validating:"):
-
+    for images, labels, timestamp in tqdm(val_loader, desc="Validating:"):
         images = images.to(device)
         labels = labels.to(device)
 
         target = model(images).cpu().numpy().tolist()[0]
 
-        # TODO: add the results into the validation_string
+        # Concatenar los resultados en validation_string
+        validation_string += f"{timestamp.item()} {' '.join(map(str, target))}\n"
 
-
-f = open("validation.txt", "a")
-f.write(validation_string)
-f.close()
+# Guardar los resultados en un archivo
+with open("validation.txt", "a") as f:
+    f.write(validation_string)
